@@ -3,24 +3,27 @@
 import numpy as np
 
 
-def loadNcs(filename, should_d2a=True, should_read_time=True, trim_zeros=True):
+def loadNcs(filename, should_d2a=True, should_read_time=True, trim_zeros=True,
+            return_header=False, auto_invert=True):
     """Loads a neuralynx .ncs electrode file.
 
     Keyword arguments:
     should_d2a -- convert from integer to microVolt units (default True)
     should_read_time -- read and return timestamps (default True)
     trim_zeros -- removes traling zeros from the trace (default True)
+    return_header -- return the file header (default True)
+    auto_invert -- invert signal if header shows it is (default True)
 
     Returns (in order):
     - Voltage trace (in uV if should_d2a = True)
     - Timestamps (double, microseconds) if should_read_time = True
     - Integer to microVolt conversion factor (double) if should_d2a = False
 
-    Sample usage:
-    >>> csc, ts = nlxio.loadNcs('TT4E1.ncs')
-    >>> csc, ts, d2a = nlxio.loadNcs('TT4E1.ncs', should_d2a=False)
-    >>> csc = nlxio.loadNcs('TT4E1.ncs', should_read_time=False)
-    >>> csc, d2a = nlxio.loadNcs('TT4E1.ncs', should_d2a=False,
+    Usage:
+    csc, ts = nlxio.loadNcs('TT4E1.ncs')
+    csc, ts, d2a = nlxio.loadNcs('TT4E1.ncs', should_d2a=False)
+    csc = nlxio.loadNcs('TT4E1.ncs', should_read_time=False)
+    csc, d2a = nlxio.loadNcs('TT4E1.ncs', should_d2a=False,
                                     should_read_time = false)
 
     """
@@ -65,23 +68,26 @@ def loadNcs(filename, should_d2a=True, should_read_time=True, trim_zeros=True):
     for line in header.split('\n'):
         if line.strip().startswith('-ADBitVolts'):
             a2d_conversion = 1e6 * np.array(map(float, line.split()[1:5]))
-            break
+        if line.strip().startswith('-InputInverted'):
+            if (line.strip().split(' ')[1] == 'True') and auto_invert:
+                csc = - csc
 
     if (a2d_conversion is None) and should_d2a:
         raise IOError("ADBitVolts not found in .ncs header for " + filename)
 
-    if should_d2a:
-        # if we've already done d2a theres no reason to return the conv factor
-        csc = csc * a2d_conversion
-        if should_read_time:
-            return csc, ts
-        else:
-            return csc
+    retvals = [csc]
+
+    if should_read_time:
+        retvals.append(ts)
+    if not should_d2a:
+        retvals.append(a2d_conversion)
+    if return_header:
+        retvals.append(header.split('\n'))
+
+    if len(retvals) == 1:
+        return retvals[0]
     else:
-        if should_read_time:
-            return csc, ts, a2d_conversion
-        else:
-            return csc, a2d_conversion
+        return tuple(retvals)
 
 
 def loadTetrodeNcs(filename, should_d2a=True, trim_zeros=True):
@@ -99,9 +105,9 @@ def loadTetrodeNcs(filename, should_d2a=True, trim_zeros=True):
     - Timestamps (double, microseconds) if should_read_time = True
     - Integer to microVolt conversion factor (double) if should_d2a = False
 
-    Sample usage:
-    >>> csc, ts = nlxio.loadTetrodeNcs('TT4E%C.ncs')
-    >>> csc, ts, d2a = nlxio.loadTetrodeNcs('TT4E%C.ncs', should_d2a=False)
+    Usage:
+    csc, ts = nlxio.loadTetrodeNcs('TT4E%C.ncs')
+    csc, ts, d2a = nlxio.loadTetrodeNcs('TT4E%C.ncs', should_d2a=False)
 
     """
 
@@ -151,7 +157,8 @@ def loadNtt(filename, should_d2a=True):
     - Spike times as uint64, microseconds
     - Sampling frequency in waveforms, Hz
 
-    >>> ts, sp, fs = nlxio.loadNtt('TT13.ntt')
+    Usage:
+    ts, sp, fs = nlxio.loadNtt('TT13.ntt')
 
     """
 
@@ -206,7 +213,7 @@ def loadNev(filename):
     - Nttl (uint16)
     - Event String (charx128)
 
-    >>> ts, eid, nttl, estr = nlxio.loadNev('Events.nev')
+    ts, eid, nttl, estr = nlxio.loadNev('Events.nev')
 
     """
 
