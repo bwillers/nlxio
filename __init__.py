@@ -178,12 +178,12 @@ def loadNtt(filename, should_d2a=True):
     # Read the header and find the conversion factors / sampling frequency
     a2d_conversion = None
     fs = None
-    for line in header.split('\n'):
+    for line in header.decode().split('\n'):
         line = line.replace('\t', ' ')
         if line.strip().startswith('-SamplingFrequency'):
             fs = float(line.strip().split(' ')[1].strip())
         if line.strip().startswith('-ADBitVolts'):
-            a2d_conversion = 1e6 * np.array(map(float, line.split()[1:5]))
+            a2d_conversion = 1e6 * np.array(list(map(float, line.split()[1:5])))
 
     f.seek(2 ** 14)    # start of the spike, records
     # Neuralynx write little endian for some dumb reason
